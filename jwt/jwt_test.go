@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	jose "github.com/go-jose/go-jose/v4"
+	jose "github.com/ghasemdev/go-jose/v4"
 )
 
 var (

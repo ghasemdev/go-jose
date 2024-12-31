@@ -25,7 +25,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-jose/go-jose/v4/json"
+	"github.com/ghasemdev/go-jose/v4/json"
 )
 
 // NonceSource represents a source of random nonces to go into JWS objects
