@@ -415,6 +415,90 @@ func (ctx *genericEncrypter) EncryptWithAuthData(plaintext, aad []byte) (*JSONWe
 	return obj, nil
 }
 
+// Implementation of encrypt method producing a JWE object.
+func (ctx *genericEncrypter) EncryptWithSek(plaintext, cek []byte) (*JSONWebEncryption, error) {
+	obj := &JSONWebEncryption{}
+	obj.aad = nil
+
+	obj.protected = &rawHeader{}
+	err := obj.protected.set(headerEncryption, ctx.contentAlg)
+	if err != nil {
+		return nil, err
+	}
+
+	obj.recipients = make([]recipientInfo, len(ctx.recipients))
+
+	if len(ctx.recipients) == 0 {
+		return nil, fmt.Errorf("go-jose/go-jose: no recipients to encrypt to")
+	}
+
+	_, headers, err := ctx.keyGenerator.genKey()
+	if err != nil {
+		return nil, err
+	}
+
+	obj.protected.merge(&headers)
+
+	for i, info := range ctx.recipients {
+		recipient, err := info.keyEncrypter.encryptKey(cek, info.keyAlg)
+		if err != nil {
+			return nil, err
+		}
+
+		err = recipient.header.set(headerAlgorithm, info.keyAlg)
+		if err != nil {
+			return nil, err
+		}
+
+		if info.keyID != "" {
+			err = recipient.header.set(headerKeyID, info.keyID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		obj.recipients[i] = recipient
+	}
+
+	if len(ctx.recipients) == 1 {
+		// Move per-recipient headers into main protected header if there's
+		// only a single recipient.
+		obj.protected.merge(obj.recipients[0].header)
+		obj.recipients[0].header = nil
+	}
+
+	if ctx.compressionAlg != NONE {
+		plaintext, err = compress(ctx.compressionAlg, plaintext)
+		if err != nil {
+			return nil, err
+		}
+
+		err = obj.protected.set(headerCompression, ctx.compressionAlg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for k, v := range ctx.extraHeaders {
+		b, err := json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		(*obj.protected)[k] = makeRawMessage(b)
+	}
+
+	authData := obj.computeAuthData()
+	parts, err := ctx.cipher.encrypt(cek, authData, plaintext)
+	if err != nil {
+		return nil, err
+	}
+
+	obj.iv = parts.iv
+	obj.ciphertext = parts.ciphertext
+	obj.tag = parts.tag
+
+	return obj, nil
+}
+
 func (ctx *genericEncrypter) Options() EncrypterOptions {
 	return EncrypterOptions{
 		Compression:  ctx.compressionAlg,
