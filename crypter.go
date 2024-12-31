@@ -29,6 +29,7 @@ import (
 type Encrypter interface {
 	Encrypt(plaintext []byte) (*JSONWebEncryption, error)
 	EncryptWithAuthData(plaintext []byte, aad []byte) (*JSONWebEncryption, error)
+	EncryptWithCek(plaintext []byte, cek []byte) (*JSONWebEncryption, error)
 	Options() EncrypterOptions
 }
 
@@ -416,7 +417,7 @@ func (ctx *genericEncrypter) EncryptWithAuthData(plaintext, aad []byte) (*JSONWe
 }
 
 // Implementation of encrypt method producing a JWE object.
-func (ctx *genericEncrypter) EncryptWithSek(plaintext, cek []byte) (*JSONWebEncryption, error) {
+func (ctx *genericEncrypter) EncryptWithCek(plaintext, cek []byte) (*JSONWebEncryption, error) {
 	obj := &JSONWebEncryption{}
 	obj.aad = nil
 
